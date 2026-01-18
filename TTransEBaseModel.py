@@ -45,8 +45,8 @@ class TTransE(nn.Module):
         relations = self.relations(input[1])
         times = self.times(input[3])
 
-        # TTransE: ||h + r + t - tail||_2
-        scores = torch.norm(subjects + relations + times - objects, p=2, dim=1)  # p: L2
+        # TTransE: -||s + p + t - o||_2
+        scores = -torch.norm(subjects + relations + times - objects, p=2, dim=1)  # p: L2
         return scores
 
     def compute_loss(self, input, positive_scores):
@@ -65,7 +65,7 @@ class TTransE(nn.Module):
         negative_scores = torch.cat([negative_scores_h, negative_scores_t])
         positive_scores_expanded = positive_scores.repeat(2)
 
-        # MarginRankingLoss: expect positive distance < negative distance
+        # MarginRankingLoss: expect positive distance > negative distance
         loss_fn = nn.MarginRankingLoss(margin=self.margin, reduction='mean')
         labels = torch.ones_like(positive_scores_expanded)
         loss = loss_fn(positive_scores_expanded, negative_scores, labels)
@@ -103,13 +103,13 @@ class TTransE(nn.Module):
 
 if __name__ == '__main__':
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    model = TTransE(230, 7128, 365, 300, 1.0).to(device)
+    model = TTransE(230, 7128, 365, 200, 1.0).to(device)
     train_dataset = dl.ICEWSData('train', True)
     train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True)
     lossFunction = nn.CrossEntropyLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=0.003, weight_decay=0.07)
+    optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.07)
     model.train()
-    for x in range(10):
+    for x in range(40):
         print(f"Epoch {x + 1}")
         absLoss = 0
         num_batches = 0
